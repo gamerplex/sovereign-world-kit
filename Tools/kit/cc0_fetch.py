@@ -2,7 +2,7 @@
 """Fetch CC0 photoscanned materials (ambientCG) HDRIs and models (Poly Haven) listed in cc0_list.json into Imports/cc0/,
 each with a source record. Tools/kit/collect.py then copies them into Kit/. Resumable: fetched assets are skipped.
 Usage: cc0_fetch.py [--res 2K]"""
-import io, json, os, sys, urllib.parse, urllib.request, zipfile
+import http.client, io, json, os, sys, time, urllib.parse, urllib.request, zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', '..', 'Imports', 'cc0')
@@ -10,8 +10,15 @@ RES = sys.argv[sys.argv.index('--res') + 1] if '--res' in sys.argv else '2K'
 UA = {'User-Agent': 'SovereignWorldKit/1.0'}
 
 
-def get(url):
-    return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read()
+def get(url, tries=4):
+    for i in range(tries):  # CC0 hosts sometimes drop connections; back off and retry
+        try:
+            return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read()
+        except (OSError, http.client.HTTPException) as e:
+            if i == tries - 1:
+                raise
+            print(f'retry {i + 1}/{tries - 1} after {e.__class__.__name__}: {url}')
+            time.sleep(2 ** i * 3)
 
 
 def ambientcg(query, n, by_id=False):
