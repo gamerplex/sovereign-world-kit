@@ -7,7 +7,7 @@ description: Build an original night street from the Sovereign World Kit (CC0 mo
 
 1. Pick the size and variation from the request: `BAYS` = street length / 4 m (8–64; default 16), `SEED` = any integer (a new seed gives a new shop mix). For a neon, dense, "cyberpunk" or Chongqing-style street, prefix `DENSE=1` (stacked vertical signs, taller frontage, skybridges).
 2. Run `Tools/kit/street.sh BAYS SEED --serve` from the kit's root folder: two levels above this SKILL.md's real path, following symlinks (the cloned repo, or the installed plugin's folder). **Building into a game or project folder** (e.g. a gamerplex-dev game with a live preview): set `OUT=<that folder>` and drop `--serve`; the folder gets `index.html` + `street.glb` and is itself a playable web game. First run only: `python3 Tools/kit/cc0_fetch.py` downloads the CC0 materials (ambientCG, ~200 MB). It builds `Saved/web/street.glb`, writes `street.provenance.json` + `LICENSE`, and serves the walkthrough at `http://localhost:8765/index.html`.
-3. Report: the GLB size, the licence line it printed, and the walkthrough URL.
+3. Report: the GLB size, the licence line it printed, and where to play it: the walkthrough URL with `--serve`, or, when built into a game folder, that folder's own preview (e.g. "press Restart Game in the preview"). Don't mention port 8765 then.
 
 ## Licence rules (never break these)
 - Build only from kit parts, our generators, and photos the user says they took themselves.
