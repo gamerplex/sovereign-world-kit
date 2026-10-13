@@ -34,13 +34,33 @@ Blender somewhere else? `BLENDER=/path/to/blender Tools/kit/street.sh …` · Ne
 | `Tools/kit/cc0_fetch.py` | fetches the exact ambientCG sets the generator uses, each with a `source.json` record |
 | `Tools/kit/web/` | the three.js walkthrough |
 
+### Coming to the pipeline
+Everything a 3D game needs, built the same way: open licence in, provenance out.
+
+| Pipeline | Status |
+|---|---|
+| City generator: districts, hills, stacked streets, any size | Building |
+| More buildings and props (CC0, audited before release) | Building |
+| Character generator: original rigged humans and crowds | Next |
+| Vehicle generator: cars and traffic | Next |
+| Animation and locomotion set | Next |
+| Asset forge: photo or text → prop, with provenance | Next |
+| Music and sound-effect generation (CC0 output) | Next |
+| Gameplay pack: third-person controller, combat, AI opponents | Next |
+| Unreal plugin, then Godot | Next |
+| One-click publish: hosting, challenge link, sign in with Flipcash | Next |
+| Proof of creation on Solana + maker payouts | Next |
+
 ## Licensed by construction
 - **In:** this kit's own generator output, CC0 materials (ambientCG), and photos you took yourself.
 - **Refused:** other games' files or screenshots, known characters, brand logos and trademarks.
 - **Out:** CC0 1.0 + a provenance record. Pure AI or procedural output generally isn't copyrightable (US Copyright Office, 2025), so CC0 is the honest default; what you design on top is yours.
 
+## Publish and get paid (Solana)
+The kit is free and works on its own. When you want players and revenue, publish to the [Gamerplex arcade](https://gamerplex.com): it's live on Solana mainnet, players pay a few cents per play, and players can sign in with [Flipcash](https://flipcash.com) and bring their community. The payment side lives in its own open repos: [gamerplex-arcade](https://github.com/gamerplex/gamerplex-arcade) (contracts) and [gamerplex-sdk](https://github.com/gamerplex/gamerplex-sdk). Next: every world's provenance anchored on Solana, so the people who made its parts can be paid when it's played.
+
 ## Roadmap
-Our own city generator (districts, hills, stacked streets) → an Unreal plugin → a small CC0 gameplay pack → publishing to the Gamerplex arcade on Solana, where players pay cents and creators earn.
+Our own city generator (districts, hills, stacked streets) → an Unreal plugin → a small CC0 gameplay pack → one-click publishing to the Gamerplex arcade. See *Coming to the pipeline* above.
 
 ## Licence
 Assets: CC0 1.0 (`LICENSE-ASSETS`). Code: MIT (`LICENSE`). Not legal advice: see `LEGAL.md`.
