@@ -29,6 +29,7 @@ street.ground(L, -WALK, 0.0, 'PavingStones151', 2.0, 'Sidewalk_N')
 street.ground(L, -(ROAD + WALK), -WALK, 'Asphalt025C', 3.0, 'Road')
 street.ground(L, -(ROAD + 2 * WALK), -(ROAD + WALK), 'PavingStones151', 2.0, 'Sidewalk_S')
 KIT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))  # repo root
+KIT_VERSION = json.load(open(os.path.join(KIT, '.claude-plugin', 'plugin.json')))['version']
 _kitprov = os.path.join(KIT, 'Kit', 'PROVENANCE.json')
 RECORDS = {os.path.basename(k): v for k, v in json.load(open(_kitprov)).items()} if os.path.exists(_kitprov) else {}
 OURS = (os.path.join(KIT, 'Imports', 'kit'),)  # our generators' output (facades.py, sign_atlas.py): CC0 by the kit licence
@@ -70,6 +71,7 @@ for img in bpy.data.images:  # web budget: 1K textures
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', export_apply=False, export_image_format='JPEG',
                           export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=6)
 json.dump({'output': os.path.basename(OUT), 'sha256': sha(OUT), 'licence': 'CC0-1.0',
+           'kit': {'name': 'sovereign-world-kit', 'version': KIT_VERSION},
            'generator': {'script': 'Tools/blender/kit/street_build.py', 'sha256': sha(os.path.abspath(__file__)),
                          'blender': bpy.app.version_string, 'bays': BAYS, 'seed': SEED},
            'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'inputs': prov},
