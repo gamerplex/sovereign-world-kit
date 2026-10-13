@@ -1,0 +1,9 @@
+{
+  "name": "sovereign-world-kit",
+  "displayName": "Sovereign World Kit",
+  "description": "Agent-native CC0 world kit: streets and cities with a licence and provenance for every output. Web + Unreal. Built with Gamerplex.",
+  "author": {
+    "name": "Gamerplex"
+  },
+  "version": "0.1.0"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "gamerplex",
+  "owner": {
+    "name": "Gamerplex"
+  },
+  "description": "Gamerplex skills for AI agents: build original, licensed 3D worlds (CC0 + provenance) for the web and Unreal.",
+  "plugins": [
+    {
+      "name": "sovereign-world-kit",
+      "source": "./",
+      "description": "Build original, licensed 3D worlds from CC0 parts with your agent."
+    }
+  ]
+}

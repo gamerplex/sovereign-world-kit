@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sovereign World Kit Street</title>
+<style>
+  :root { --bg: #05060a; --fg: #e8e6f0; --accent: #9945ff; --ok: #14f195; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 14px/1.4 system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 16px; bottom: 16px; padding: 10px 12px; background: rgba(5, 6, 10, .7); border: 1px solid #2a2440; border-radius: 8px; }
+  #hud b { color: var(--ok); }
+  #go { position: fixed; right: 16px; bottom: 16px; width: 64px; height: 64px; border-radius: 50%; border: 1px solid var(--accent);
+        background: rgba(153, 69, 255, .25); color: var(--fg); font-size: 22px; touch-action: none; }
+  #load { position: fixed; inset: 0; display: grid; place-items: center; }
+</style>
+</head>
+<body>
+<div id="load">Loading street…</div>
+<div id="hud">Built from the Sovereign World Kit · <b>CC0 ✓</b> · <b>provenance ✓</b><br>Click, then WASD + mouse · touch: drag to look, hold ▲</div>
+<button id="go" aria-label="Walk forward">▲</button>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const SCENE_URL = new URLSearchParams(location.search).get('scene') || 'street.glb';
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07060f);
+scene.fog = new THREE.FogExp2(0x120c24, 0.022);
+scene.add(new THREE.HemisphereLight(0x5a4a9a, 0x0a0a12, 0.6));
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 400);
+camera.position.set(4, 1.7, -7);
+camera.rotation.order = 'YXZ';
+const QP = new URLSearchParams(location.search);
+let yaw = -Math.PI / 2, pitch = parseFloat(QP.get('pitch') || '0');  // ?pitch=0.3 looks up (shots, demos)
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.1, 0.45, 0.82));
+composer.addPass(new OutputPass());
+
+const draco = new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/');
+new GLTFLoader().setDRACOLoader(draco).load(SCENE_URL, (g) => {
+  scene.add(g.scene);
+  const box = new THREE.Box3().setFromObject(g.scene);
+  // warm street lamps along the sidewalks: the facades' emissive signs carry the rest
+  for (let x = box.min.x + 6; x < box.max.x; x += 12)
+    for (const z of [box.min.z + 2, box.max.z - 2]) {
+      const l = new THREE.PointLight(0xffb070, 18, 14, 2); l.position.set(x, 4.5, z); scene.add(l);
+    }
+  camera.position.set(box.min.x + 3, 1.7, (box.min.z + box.max.z) / 2);
+  document.getElementById('load').remove();
+}, undefined, (e) => { document.getElementById('load').textContent = 'Could not load ' + SCENE_URL; console.error(e); });
+
+const keys = new Set();
+addEventListener('keydown', (e) => keys.add(e.code));
+addEventListener('keyup', (e) => keys.delete(e.code));
+renderer.domElement.addEventListener('click', () => renderer.domElement.requestPointerLock?.());
+addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement !== renderer.domElement) return;
+  yaw -= e.movementX * 0.0022; pitch = Math.max(-1.4, Math.min(1.4, pitch - e.movementY * 0.0022));
+});
+let touch = null, forward = false;
+renderer.domElement.addEventListener('touchstart', (e) => { touch = e.touches[0]; }, { passive: true });
+renderer.domElement.addEventListener('touchmove', (e) => {
+  const t = e.touches[0]; if (!touch) return;
+  yaw -= (t.clientX - touch.clientX) * 0.005; pitch = Math.max(-1.4, Math.min(1.4, pitch - (t.clientY - touch.clientY) * 0.005)); touch = t;
+}, { passive: true });
+const go = document.getElementById('go');
+go.addEventListener('pointerdown', () => { forward = true; });
+addEventListener('pointerup', () => { forward = false; });
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05), speed = (keys.has('ShiftLeft') ? 9 : 4) * dt;
+  camera.rotation.set(pitch, yaw, 0);
+  const f = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)), r = new THREE.Vector3(-f.z, 0, f.x);
+  if (keys.has('KeyW') || forward) camera.position.addScaledVector(f, speed);
+  if (keys.has('KeyS')) camera.position.addScaledVector(f, -speed);
+  if (keys.has('KeyD')) camera.position.addScaledVector(r, speed);
+  if (keys.has('KeyA')) camera.position.addScaledVector(r, -speed);
+  composer.render();
+});
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
