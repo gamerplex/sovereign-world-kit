@@ -9,7 +9,9 @@
 /plugin marketplace add gamerplex/sovereign-world-kit
 /plugin install sovereign-world-kit@gamerplex
 ```
-Then ask: **"build a rainy night street with Gamerplex, 24 bays"**.
+Then ask: **"build a rainy night street with Gamerplex, 24 bays"** or **"build me a random cyberpunk city"**.
+
+No Blender? Random city, in the browser, nothing to install: `python3 -m http.server 8822` then open `http://localhost:8822/three/city.html?seed=94` (three.js; WASD + drag to fly; the page can download its provenance record). The city comes with robot patrols, a checkpoint gate and three objective sites (power station, datacentre, drone hive); add `&bare` for the city alone.
 
 Or clone and run it yourself (needs [Blender](https://www.blender.org/) 4.x and Python 3):
 ```bash
@@ -28,6 +30,9 @@ Blender somewhere else? `BLENDER=/path/to/blender Tools/kit/street.sh …` · Ne
 ## What's inside
 | Path | What |
 |---|---|
+| `three/` | random city generator: official three.js `CityGenerator` + `Cyberfier` (CC0 output) |
+| `three/RobotGenerator.js` · `BorderGateGenerator.js` · `ObjectiveSiteGenerator.js` | robots (drone, hound, heavy), checkpoint gates, objective sites; all from code, placed in the random city |
+| `skills/build-city/` | the agent skill for random cities |
 | `skills/build-street/` | the agent skill (also linked at `.claude/skills/` for cloned use) |
 | `Tools/blender/kit/` | the generators: `facades.py` (module set), `street.py` (assembly), `street_build.py` (GLB + provenance gate) |
 | `Imports/kit/` | the CC0 facade modules and sign atlases our generators made |
@@ -41,7 +46,7 @@ Everything a 3D game needs, built the same way: open licence in, provenance out.
 |---|---|---|
 | Street generator: neon, dense or plain, any length | v0.1 live | ✓ |
 | Licence gate + provenance record for every build | v0.1 live | ✓ |
-| City generator: whole districts from kit modules (Unreal) | v0.1 live | soon |
+| City generator: random city from a seed, in three.js (CC0) | v0.2 live | ✓ |
 | Unreal import: kit modules as native Unreal meshes | v0.1 live | soon |
 | Asset forge: photo or text → 3D prop, with provenance | v0.1 live | soon |
 | Vehicle generator | v0.1 live | soon |
@@ -64,7 +69,7 @@ Everything a 3D game needs, built the same way: open licence in, provenance out.
 The kit is free and works on its own. When you want players and revenue, publish to the [Gamerplex arcade](https://gamerplex.com): it's live on Solana mainnet, players pay a few cents per play, and players can sign in with [Flipcash](https://flipcash.com) and bring their community. The payment side lives in its own open repos: [gamerplex-arcade](https://github.com/gamerplex/gamerplex-arcade) (contracts) and [gamerplex-sdk](https://github.com/gamerplex/gamerplex-sdk). Next: every world's provenance anchored on Solana, so the people who made its parts can be paid when it's played.
 
 ## Roadmap
-Our own city generator (districts, hills, stacked streets) → an Unreal plugin → a small CC0 gameplay pack → one-click publishing to the Gamerplex arcade. See *The pipeline* above.
+Next: **random cities from a seed are CC0 and live (v0.2).** "Build my hometown" from open map data is a separate mode that carries ODbL map credit in its provenance record. Then a small CC0 gameplay pack and one-click publishing to the Gamerplex arcade. Unreal and Godot come after. See *The pipeline* above.
 
 ## Licence
 Assets: CC0 1.0 (`LICENSE-ASSETS`). Code: MIT (`LICENSE`). Not legal advice: see `LEGAL.md`.

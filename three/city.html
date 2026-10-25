@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sovereign World Kit: random city</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#info{position:fixed;left:12px;top:10px;color:#9fe;font:13px/1.5 system-ui;text-shadow:0 0 6px #000}#info a{color:#fc8;cursor:pointer}</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+  "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+  "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.tsl.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="info"></div>
+<script type="module">
+// Random city from a seed: official three.js CityGenerator + Cyberfier. No map data, no embedded assets: CC0 output.
+import * as THREE from 'three/webgpu';
+import { pass } from 'three/tsl';
+import { bloom } from 'three/addons/tsl/display/BloomNode.js';
+import { CityGenerator, createBuildingMaterial, createRoadMaterial } from 'three/addons/generators/CityGenerator.js';
+import { Cyberfier } from './Cyberfier.js';
+import { RobotGenerator } from './RobotGenerator.js';
+import { BorderGateGenerator } from './BorderGateGenerator.js';
+import { ObjectiveSiteGenerator } from './ObjectiveSiteGenerator.js';
+
+const KIT_VERSION = '0.2.0', THREE_VERSION = '0.186.1';
+const q = new URLSearchParams( location.search ), seed = + ( q.get( 'seed' ) || 94 ), plain = q.has( 'plain' );
+const style = q.get( 'style' ) || Cyberfier.defaults.style;
+const layers = q.get( 'layers' ) ? q.get( 'layers' ).split( ',' ) : null;
+
+const renderer = new THREE.WebGPURenderer( { antialias: true } );
+renderer.setPixelRatio( Math.min( 2, devicePixelRatio ) ); renderer.setSize( innerWidth, innerHeight );
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.13; document.body.appendChild( renderer.domElement );
+await renderer.init();
+
+const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera( 60, innerWidth / innerHeight, 1, 6000 );
+const city = new CityGenerator( { seed } ), L = city.layout;
+scene.add( new THREE.Mesh( new THREE.PlaneGeometry( L.cityW + 2 * L.street, L.cityD + 2 * L.street ).rotateX( - Math.PI / 2 ), createRoadMaterial( L ) ) );
+const cityGroup = city.build( { building: createBuildingMaterial( L, city.seedNode ) } );
+scene.add( cityGroup );
+const kitOn = ! plain && ! q.has( 'bare' );
+
+// objective sites need open ground: clear their lots before the buildings are dressed
+const SITES = [
+	{ kind: 'power', x: 29, z: - 41, ry: - Math.PI / 2, lots: [[ 29, - 54 ], [ 29, - 28 ]], lit: 1 },
+	{ kind: 'datacentre', x: - 29, z: - 41, ry: Math.PI / 2, lots: [[ - 29, - 54 ], [ - 29, - 28 ]], lit: 0 },
+	{ kind: 'drones', x: 42.5, z: 41, ry: 0, scale: 1.35, lots: [[ 29, 28 ], [ 56, 28 ], [ 29, 54 ], [ 56, 54 ]], lit: 0 }
+];
+if ( kitOn ) {
+
+	const cleared = cityGroup.children.filter( ( o ) => o.name === 'Skyscraper' && SITES.some( ( s ) => s.lots.some( ( [ x, z ] ) => Math.hypot( o.position.x - x, o.position.z - z ) < 6 ) ) );
+	for ( const o of cleared ) cityGroup.remove( o );
+
+}
+scene.background = new THREE.Color( 0xa9c4dc );
+const sun = new THREE.DirectionalLight( 0xfff0dd, 60 ); sun.position.set( 200, 300, - 120 );
+scene.add( sun, new THREE.HemisphereLight( 0xbcd2ee, 0x6a5a50, 6 ) );
+
+let pipe = null, cyberfier = null;
+if ( ! plain ) {
+
+	cyberfier = new Cyberfier( { seed, style, ...( layers ? { layers } : {} ) } ).apply( scene, renderer );
+	pipe = new THREE.RenderPipeline( renderer );
+	const color = pass( scene, camera ).getTextureNode(), glow = bloom( color, 0.35, 0.5, 0.8 );
+	glow.setResolutionScale( 0.5 ); pipe.outputNode = color.add( glow );
+
+}
+
+// kit generators in the streets: a checkpoint across the avenue and robot patrols ( ?bare hides them )
+const patrols = [];
+let gates = null;
+if ( kitOn ) {
+
+	for ( const s of SITES ) {
+
+		const site = new ObjectiveSiteGenerator().build( s );
+		site.setLit( s.lit );
+		site.group.scale.setScalar( s.scale || 1 );
+		scene.add( site.group );
+
+	}
+
+	const cut = - L.cityD / 2 + L.blockD * 0.5, edge = L.cityW / 2 + L.street;
+	gates = new BorderGateGenerator();
+	scene.add( gates.build( {
+		districts: [ { poly: [ - edge, - edge, edge, - edge, edge, cut, - edge, cut ] }, { poly: [ - edge, cut, edge, cut, edge, edge, - edge, edge ] } ],
+		roadGraph: { nodes: [ 0, - L.cityD / 2 - L.street, 0, L.cityD / 2 + L.street ], links: [ [ 0, 1, 0, 16 ] ] }
+	} ) );
+	const robots = new RobotGenerator(), zEnd = L.cityD / 2 + L.street / 2, xEnd = L.cityW / 2 + L.street / 2;
+	const add = ( kind, palette, a, b, y, speed, t0 ) => {
+
+		const r = robots.build( kind, palette );
+		scene.add( r.group );
+		patrols.push( { r, a, b, y, speed, t: t0 * a.distanceTo( b ) } );
+
+	};
+	const V = ( x, z ) => new THREE.Vector3( x, 0, z );
+	add( 'heavy', 'red', V( - 4, - zEnd ), V( - 4, zEnd ), 0, 2.2, 0.22 );
+	add( 'hound', 'red', V( 4, - zEnd ), V( 4, zEnd ), 0, 6, 0.05 );
+	add( 'hound', 'red', V( 6, - zEnd ), V( 6, zEnd ), 0, 6, 0.12 );
+	add( 'hound', 'violet', V( - xEnd, 4 ), V( xEnd, 4 ), 0, 7, 0.4 );
+	add( 'drone', 'red', V( 0, - zEnd ), V( 0, zEnd ), 11, 9, 0.3 );
+	add( 'drone', 'red', V( - xEnd, - 2 ), V( xEnd, - 2 ), 15, 11, 0.7 );
+	add( 'drone', 'cyan', V( 0, zEnd ), V( 0, - zEnd ), 22, 8, 0.6 );
+
+}
+
+function updatePatrols( dt, t ) {
+
+	for ( const p of patrols ) {
+
+		const len = p.a.distanceTo( p.b ), k = ( ( p.t += p.speed * dt ) % ( 2 * len ) ) / len, back = k > 1;
+		p.r.group.position.lerpVectors( p.a, p.b, back ? 2 - k : k ).setY( p.y );
+		p.r.group.rotation.y = Math.atan2( p.b.x - p.a.x, p.b.z - p.a.z ) + ( back ? Math.PI : 0 );
+		p.r.update( dt, p.speed );
+
+	}
+	if ( gates ) gates.setStates( () => [ 'closed', 'scan', 'open' ][ Math.floor( t / 3 ) % 3 ] );
+
+}
+
+async function sha256( url ) {
+
+	const bytes = await ( await fetch( url ) ).arrayBuffer();
+	return [ ...new Uint8Array( await crypto.subtle.digest( 'SHA-256', bytes ) ) ].map( b => b.toString( 16 ).padStart( 2, '0' ) ).join( '' );
+
+}
+
+// Same shape as the Blender street record; no map data, so the only inputs are code.
+const provenance = {
+	output: 'live scene (three.js)', licence: 'CC0-1.0', mode: 'random-city',
+	kit: { name: 'sovereign-world-kit', version: KIT_VERSION },
+	generator: { name: 'three.js CityGenerator + Cyberfier', three: THREE_VERSION, cyberfier_sha256: await sha256( './Cyberfier.js' ), seed, style: plain ? 'none' : style, layers: layers || 'default' },
+	created: new Date().toISOString(),
+	inputs: [
+		{ file: 'three@' + THREE_VERSION + ' examples/jsm/generators/CityGenerator.js', source: 'three.js (code, procedural output)', licence: 'MIT code; output generated' },
+		{ file: 'three/Cyberfier.js', source: 'Sovereign World Kit', licence: 'MIT code; output generated' },
+		{ file: 'three/RobotGenerator.js + three/BorderGateGenerator.js + three/ObjectiveSiteGenerator.js', source: 'Sovereign World Kit', licence: 'MIT code; output generated' }
+	],
+	map_data: 'none', embedded_assets: 'none'
+};
+window.PROVENANCE = provenance;
+
+const info = document.getElementById( 'info' );
+info.innerHTML = 'Random city, seed ' + seed + ( plain ? ' (original look)' : ' (' + cyberfier.buildings.length + ' buildings, ' + style + ')' ) + '. CC0. WASD + drag to fly, Shift = fast. <a id="dl">download provenance</a>';
+document.getElementById( 'dl' ).onclick = () => {
+
+	const a = document.createElement( 'a' );
+	a.href = URL.createObjectURL( new Blob( [ JSON.stringify( provenance, null, 1 ) ], { type: 'application/json' } ) );
+	a.download = 'city-' + seed + '.provenance.json'; a.click();
+
+};
+
+// fly camera: WASD + drag to look
+camera.position.set( 0, 6, - 170 ); camera.lookAt( 0, 50, 120 );
+const euler = new THREE.Euler( 0, 0, 0, 'YXZ' ).setFromQuaternion( camera.quaternion ), keys = new Set();
+window.CITY = { camera, patrols, euler, scene };
+addEventListener( 'keydown', e => keys.add( e.code ) ); addEventListener( 'keyup', e => keys.delete( e.code ) );
+addEventListener( 'pointermove', e => {
+
+	if ( ! ( e.buttons & 1 ) ) return;
+	euler.y -= e.movementX * 0.003; euler.x = Math.max( - 1.5, Math.min( 1.5, euler.x - e.movementY * 0.003 ) ); camera.quaternion.setFromEuler( euler );
+
+} );
+const dir = new THREE.Vector3();
+let last = performance.now();
+renderer.setAnimationLoop( () => {
+
+	const now = performance.now(), dt = Math.min( 0.1, ( now - last ) / 1000 ); last = now;
+	const speed = ( keys.has( 'ShiftLeft' ) ? 120 : 30 ) * dt;
+	const f = ( keys.has( 'KeyW' ) ? 1 : 0 ) - ( keys.has( 'KeyS' ) ? 1 : 0 ), r = ( keys.has( 'KeyD' ) ? 1 : 0 ) - ( keys.has( 'KeyA' ) ? 1 : 0 );
+	camera.getWorldDirection( dir ); camera.position.addScaledVector( dir, f * speed );
+	dir.cross( camera.up ).normalize(); camera.position.addScaledVector( dir, r * speed );
+	camera.position.y = Math.max( 1.7, camera.position.y );
+	updatePatrols( dt, now / 1000 );
+	if ( pipe ) pipe.render(); else renderer.render( scene, camera );
+
+} );
+addEventListener( 'resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize( innerWidth, innerHeight ); } );
+</script>
+</body>
+</html>
